@@ -60,7 +60,7 @@ trait BinomialHeap extends Heap {
     case (t1 :: ts1, t2 :: ts2) =>
       if (t1.r < t2.r) t1 :: meld(ts1, t2 :: ts2)
       else if (t2.r < t1.r) t2 :: meld(t1 :: ts1, ts2)
-      else ins(link(t1, t2), meld(ts1, ts2)) // equal rank
+      else ins(link(t1, t2), meld(ts1, ts2)) // heads of both lists are of equal rank
   }
 
   // Recursive
@@ -75,24 +75,29 @@ trait BinomialHeap extends Heap {
     }
   }
   
-  // TODO: I AM HERE, DECIFERING THIS LOGIC...
-  // Returns a heap resulting from deleting the minimum of ts
+  // Returns a heap resulting from deleting the minimum of ts (H)
   override def deleteMin(ts: H) = ts match {
     case Nil => throw new NoSuchElementException("delete min of empty heap")
     case t::ts => {
-      // Recursive
+      /* Recursive.  */
       def getMin(t: Node, ts: H): (Node, H) = ts match {
-        case Nil => (t, Nil)
-        case tp::tsp =>
-          val (tq, tsq) = getMin(tp, tsp) // recursion
-          if (ord.lteq(root(t),root(tq))) (t,ts) else (tq,t::tsq)
+        case Nil => (t, Nil) // Convergence condition, recursion complete.
+        case tp::tsp => {
+          /* Very similar to findMin: recursively compares all pairs in sequence*/
+          val (tq, tsq) = getMin(tp, tsp) // recursion on tail
+          // compare head to min of tail. Recursion causes comparison to progress from the last of list to the the first of list.
+          if (ord.lteq(root(t), root(tq))) (t,ts) else (tq, t::tsq)
+        }
       }
-      val (Node(_,_,c), tsq) = getMin(t, ts)
-      meld(c.reverse, tsq)
+      val (Node(_,_,c), tsq) = getMin(t, ts) // getMin recurses list
+      meld(c.reverse, tsq) // Reorder BinomialQueue.nodes using list with min Node removed and min Node's children.
     } // end case t::ts
   }
 }
 
+/////////////// Bogus traits /////////////////
+
+// Bug is that root is always returned as min. No recursive comparison takes place.
 trait Bogus1BinomialHeap extends BinomialHeap {
   override def findMin(ts: H) = ts match {
     case Nil => throw new NoSuchElementException("min of empty heap")
@@ -100,16 +105,19 @@ trait Bogus1BinomialHeap extends BinomialHeap {
   }
 }
 
+// Bug is that the lteq condition has been reversed so that min will not be at root.
 trait Bogus2BinomialHeap extends BinomialHeap {
   override protected def link(t1: Node, t2: Node): Node = // t1.r==t2.r
-    if (!ord.lteq(t1.x,t2.x)) Node(t1.x, t1.r+1, t2::t1.c) else Node(t2.x, t2.r+1, t1::t2.c)
+    if (!ord.lteq(t1.x, t2.x)) Node(t1.x, t1.r+1, t2::t1.c) else Node(t2.x, t2.r+1, t1::t2.c)
 }
 
+// Bug is that the wrong node is being added to children
 trait Bogus3BinomialHeap extends BinomialHeap {
   override protected def link(t1: Node, t2: Node): Node = // t1.r==t2.r
-    if (ord.lteq(t1.x,t2.x)) Node(t1.x, t1.r+1, t1::t1.c) else Node(t2.x, t2.r+1, t2::t2.c)
+    if (ord.lteq(t1.x, t2.x)) Node(t1.x, t1.r+1, t1::t1.c) else Node(t2.x, t2.r+1, t2::t2.c)
 }
 
+// Bug is that min has not been found (findMin) and the head is assumed to be min.
 trait Bogus4BinomialHeap extends BinomialHeap {
   override def deleteMin(ts: H) = ts match {
     case Nil => throw new NoSuchElementException("delete min of empty heap")
@@ -117,9 +125,11 @@ trait Bogus4BinomialHeap extends BinomialHeap {
   }
 }
 
+/* Bug is that only one list is even being looked at and then it's arbitrarily 
+ * making the head of ts1 the root and making all other nodes in both params its children. */
 trait Bogus5BinomialHeap extends BinomialHeap {
   override def meld(ts1: H, ts2: H) = ts1 match {
     case Nil => ts2
-    case t1::ts1 => List(Node(t1.x, t1.r, ts1++ts2))
+    case t1::ts1 => List(Node(t1.x, t1.r, ts1 ++ ts2))
   }
 }
